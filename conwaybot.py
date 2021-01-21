@@ -1,4 +1,9 @@
+import io
+import sys
+import time
+
 from PIL import Image, ImageDraw, ImageFont
+import numpy
 
 text = """
 Hello 
@@ -20,52 +25,33 @@ d = ImageDraw.Draw(start_image)
 
 # draw multiline text
 d.multiline_text((10, 10), text, font=fnt)
-
 cimage = start_image
-
 for i in range(1, 45):
-
     images.append(cimage)
 
-for i in range(1, 50):
+for i in range(0, 45):
+
+    fstart = time.time()
 
     x, y = 0, 0
 
     next_gen_image = Image.new("1", (width, height), 1)
+    pixel_matrix = numpy.logical_not(numpy.asarray(cimage))
 
-    while y < height:
-        x = 0
-        while x < width:
-            cell = int(not cimage.getpixel((x, y)))
+    for y in range(0, height):
+        for x in range(0, width):
+            region = pixel_matrix[max(0, y - 1): y + 2,
+                                  max(0, x - 1): x + 2]
+            live_neighbors = numpy.sum(region) - pixel_matrix[y, x]
 
-            live_neighbors = 0
-            if x > 0:
-                live_neighbors += int(not cimage.getpixel((x-1, y))) # Left
-                if y > 0:
-                    live_neighbors += int(not cimage.getpixel((x - 1, y - 1))) # upper left
-                    live_neighbors += int(not cimage.getpixel((x, y - 1))) # upper center
-                if y < (height - 1):
-                    live_neighbors += int(not cimage.getpixel((x - 1, y + 1))) # lower left
-                    live_neighbors += int(not cimage.getpixel((x, y + 1))) # lower center
-
-            if x < (width - 1):
-                live_neighbors += int(not cimage.getpixel((x+1, y))) # right
-                if y > 0:
-                    live_neighbors += int(not cimage.getpixel((x+1, y - 1))) # upper right
-                if y < (height - 1):
-                    live_neighbors += int(not cimage.getpixel((x+1, y + 1))) # lower right
-
-            if cell == 1 and (live_neighbors == 2 or live_neighbors == 3):
+            if pixel_matrix[y,x] == 1 and (live_neighbors == 2 or live_neighbors == 3):
                 next_gen_image.putpixel((x,y), 0)
-            elif cell == 0 and live_neighbors == 3:
+            elif pixel_matrix[y,x] == 0 and live_neighbors == 3:
                 next_gen_image.putpixel((x, y), 0)
-
-            x += 1
-        y += 1
 
     images.append(next_gen_image.copy())
     cimage = next_gen_image
-    print("FRAME {}".format(i))
+    print("FRAME {} {}".format(i, time.time()-fstart))
 
 agif = Image.new("1", (width, height), 1)
 draw = ImageDraw.Draw(agif)
