@@ -5,7 +5,7 @@ A toy project for myself. Inspired by [Thread Reader App](https://threadreaderap
 
 The bot uses Tweepy to find any Tweet mentions of the screenname of the bot. The text of the Tweet mentioning the bot is then used as the initial "seed" for generation 0 of a Game Of Life Simulation. The simulation lasts 100 generations. Each generation being added to an animated GIF. The animated GIF is then attached a reply to the original mention Tweet.
 
-See GitHub Issues page for things that need to be done and general ideas I might implement in the future.
+See [GitHub Issues page](https://github.com/rdpickard/conwaybot/issues) for things that need to be done and general ideas I might implement in the future.
 
 ![Example Animated Gif from Tweet](media/hello_lovely.gif)
 
