@@ -1,22 +1,12 @@
 import io
 import sys
+import os
 import time
+import hashlib
 
 from PIL import Image, ImageDraw, ImageFont
 import numpy
-
-text2 = """
-We're renovating our digital infrastructure for 2021. Unfortunately, this means rebuilding our monthly sustainer program from scratch.
-
-https://cwc.im/support
-
-If you are able, please consider signing up to help us cover our costs, or just make a one-time donation.
-
-Thank you!"""
-
-text = """
-Hello
-Lovely"""
+import tweepy
 
 
 def cord_is_in_region(y, x,
@@ -108,6 +98,7 @@ def find_empty_regions(pixel_matrix):
 # TODO write a function to computer image size that is best suited for displaying formatted text of at a particular font size
 
 
+
 def text_to_image(image_text,
                   image_height, image_width,
                   font_size, font_path):
@@ -130,9 +121,17 @@ def text_to_image(image_text,
 
     text_image = Image.new("1", (width, height), 1)
 
-    # get a font
-    # TODO check font file exists, etc
-    fnt = ImageFont.truetype(font_path, font_size)
+    if not os.path.exists(font_path):
+        raise AttributeError("No such file at font path '{}'".format(font_path))
+    if not os.path.isfile(font_path):
+        raise AttributeError("font file isn't a file '{}'".format(font_path))
+    if not os.access(font_path, os.R_OK):
+        raise AttributeError("No read access on font file '{}'".format(font_path))
+
+    try:
+        fnt = ImageFont.truetype(font_path, font_size)
+    except OSError as oe:
+        raise AttributeError("Font file doesn't seem to be a True Type font '{}'".format(font_path))
     # get a drawing context
     d = ImageDraw.Draw(text_image)
 
@@ -205,13 +204,59 @@ def images_to_animated_gif(gif_file_full_path_name, frame_images):
                                     1)
     draw = ImageDraw.Draw(container_gif_image)
 
-    # TODO Check if file exists, if so bail with exception
+    if os.path.exists(gif_file_full_path_name):
+        raise AttributeError("File already exists at specified gif path. Not going to overwrite. '{}'".format(gif_file_full_path_name))
+
     container_gif_image.save(gif_file_full_path_name,
                              save_all=True,
                              append_images=map(lambda i: i.convert('P'), frame_images),
                              optimize=False, duration=40, loop=0)
 
 
-seed_image = text_to_image(text, 800, 800, 96, "fonts/FreeMono.ttf")
-frames, frame_render_times = simulate_conway_generations_from_image(seed_image, 500)
-images_to_animated_gif("local/derp_1.gif", [frames[0]]*45 + frames)
+consumer_key = os.environ.get('consumer_key')
+consumer_secret = os.environ.get('consumer_secret')
+access_token = os.environ.get('access_token')
+access_token_secret = os.environ.get('access_token_secret')
+
+auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+auth.set_access_token(access_token, access_token_secret)
+
+api = tweepy.API(auth)
+
+bot_screenname = api.me().screen_name
+
+max_tweet_id = -1
+
+while True:
+    print("getting mentions {}".format(max_tweet_id))
+    # Setting the since_id to 0 returns an error
+    if max_tweet_id != -1:
+        mentions = api.mentions_timeline(since_id=max_tweet_id)
+    else:
+        mentions = api.mentions_timeline()
+    ids = []
+    for tweet in mentions:
+
+        #print(tweet)
+        replyers = list(map(lambda reply_tweet:  reply_tweet.user.screen_name, tweepy.Cursor(api.search, q='to:{}'.format(tweet.user.screen_name),
+                                since_id=tweet.id, tweet_mode='extended').items()))
+
+        if bot_screenname in replyers:
+            ids.append(tweet.id)
+            continue
+
+        file_name = "local/{}_{}.gif".format(hashlib.md5(tweet.text.encode()).hexdigest()[0:6], time.time())
+
+        seed_image = text_to_image(tweet.text, 800, 800, 80, "fonts/FreeMono.ttf")
+        frames, frame_render_times = simulate_conway_generations_from_image(seed_image, 100)
+        images_to_animated_gif(file_name,
+                               [frames[0]] * 45 + frames)
+
+        api.update_with_media(file_name, "@{}".format(tweet.user.screen_name), in_reply_to_status_id=tweet.id)
+
+        ids.append(tweet.id)
+
+    max_tweet_id = max(ids, default=max_tweet_id)
+
+    time.sleep(10)
+
