@@ -22,6 +22,7 @@ def cord_is_in_region(y, x,
 
 def find_non_empty_regions_bounded(region_pixel_matrix,
                                    region_y_start, region_y_end, region_x_start, region_x_end):
+
     region_size_y, region_size_x = region_pixel_matrix.shape
 
     non_empty_regions = []
@@ -213,50 +214,52 @@ def images_to_animated_gif(gif_file_full_path_name, frame_images):
                              optimize=False, duration=40, loop=0)
 
 
-consumer_key = os.environ.get('consumer_key')
-consumer_secret = os.environ.get('consumer_secret')
-access_token = os.environ.get('access_token')
-access_token_secret = os.environ.get('access_token_secret')
+if __name__ == "__main__":
 
-auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
-auth.set_access_token(access_token, access_token_secret)
+    consumer_key = os.environ.get('consumer_key')
+    consumer_secret = os.environ.get('consumer_secret')
+    access_token = os.environ.get('access_token')
+    access_token_secret = os.environ.get('access_token_secret')
 
-api = tweepy.API(auth)
+    auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+    auth.set_access_token(access_token, access_token_secret)
 
-bot_screenname = api.me().screen_name
+    api = tweepy.API(auth)
 
-max_tweet_id = -1
+    bot_screenname = api.me().screen_name
 
-while True:
-    print("getting mentions {}".format(max_tweet_id))
-    # Setting the since_id to 0 returns an error
-    if max_tweet_id != -1:
-        mentions = api.mentions_timeline(since_id=max_tweet_id)
-    else:
-        mentions = api.mentions_timeline()
-    ids = []
-    for tweet in mentions:
+    max_tweet_id = -1
 
-        #print(tweet)
-        replyers = list(map(lambda reply_tweet:  reply_tweet.user.screen_name, tweepy.Cursor(api.search, q='to:{}'.format(tweet.user.screen_name),
-                                since_id=tweet.id, tweet_mode='extended').items()))
+    while True:
+        print("getting mentions {}".format(max_tweet_id))
+        # Setting the since_id to 0 returns an error
+        if max_tweet_id != -1:
+            mentions = api.mentions_timeline(since_id=max_tweet_id)
+        else:
+            mentions = api.mentions_timeline()
+        ids = []
+        for tweet in mentions:
 
-        if bot_screenname in replyers:
+            #print(tweet)
+            replyers = list(map(lambda reply_tweet:  reply_tweet.user.screen_name, tweepy.Cursor(api.search, q='to:{}'.format(tweet.user.screen_name),
+                                    since_id=tweet.id, tweet_mode='extended').items()))
+
+            if bot_screenname in replyers:
+                ids.append(tweet.id)
+                continue
+
+            file_name = "local/{}_{}.gif".format(hashlib.md5(tweet.text.encode()).hexdigest()[0:6], time.time())
+
+            seed_image = text_to_image(tweet.text, 800, 800, 80, "fonts/FreeMono.ttf")
+            frames, frame_render_times = simulate_conway_generations_from_image(seed_image, 100)
+            images_to_animated_gif(file_name,
+                                   [frames[0]] * 45 + frames)
+
+            api.update_with_media(file_name, "@{}".format(tweet.user.screen_name), in_reply_to_status_id=tweet.id)
+
             ids.append(tweet.id)
-            continue
 
-        file_name = "local/{}_{}.gif".format(hashlib.md5(tweet.text.encode()).hexdigest()[0:6], time.time())
+        max_tweet_id = max(ids, default=max_tweet_id)
 
-        seed_image = text_to_image(tweet.text, 800, 800, 80, "fonts/FreeMono.ttf")
-        frames, frame_render_times = simulate_conway_generations_from_image(seed_image, 100)
-        images_to_animated_gif(file_name,
-                               [frames[0]] * 45 + frames)
-
-        api.update_with_media(file_name, "@{}".format(tweet.user.screen_name), in_reply_to_status_id=tweet.id)
-
-        ids.append(tweet.id)
-
-    max_tweet_id = max(ids, default=max_tweet_id)
-
-    time.sleep(10)
+        time.sleep(10)
 
