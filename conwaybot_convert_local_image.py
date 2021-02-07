@@ -3,7 +3,7 @@ import argparse
 import os
 
 import conwaybot
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 
 parser = argparse.ArgumentParser()
 parser.add_argument('number_of_generations', type=int)
@@ -20,7 +20,7 @@ if not os.access(args.seed_image_path, os.R_OK):
 
 seed_image = Image.open(args.seed_image_path)
 gray = seed_image.convert('L')
-bw = gray.point(lambda x: 0 if x<128 else 255, '1')
+bw = gray.point(lambda x: 0 if x < 128 else 255, '1')
 
 frames, frame_render_times = conwaybot.simulate_conway_generations_from_image(bw, args.number_of_generations)
 conwaybot.images_to_animated_gif(args.output_image_path,

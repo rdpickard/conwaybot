@@ -20,3 +20,11 @@ See [GitHub Issues page](https://github.com/rdpickard/conwaybot/issues) for thin
 ### Fonts 
 
 Fonts are GNU free mono. Available [here](https://github.com/opensourcedesign/fonts)
+
+### Miscellaneous notes
+
+To convert an animate gif to a mp4 movie. Apps like Instagram want an mp4. 
+
+```
+ffmpeg -i animated.gif -movflags faststart -pix_fmt yuv420p -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" video.mp4
+```
